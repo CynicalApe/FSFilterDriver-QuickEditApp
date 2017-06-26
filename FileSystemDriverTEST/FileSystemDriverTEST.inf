@@ -1,0 +1,86 @@
+;
+; FileSystemDriverTEST.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Sample ; TODO: edit Class
+ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171} ; TODO: edit ClassGuid
+Provider=%ManufacturerName%
+CatalogFile=FileSystemDriverTEST.cat
+DriverVer= ; TODO: set DriverVer in stampinf property pages
+
+[DestinationDirs]
+DefaultDestDir = 12
+FileSystemDriverTEST_Device_CoInstaller_CopyFiles = 11
+
+; ================= Class section =====================
+
+[ClassInstall32]
+Addreg=SampleClassReg
+
+[SampleClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+FileSystemDriverTEST.sys  = 1,,
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%FileSystemDriverTEST.DeviceDesc%=FileSystemDriverTEST_Device, Root\FileSystemDriverTEST ; TODO: edit hw-id
+
+[FileSystemDriverTEST_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+FileSystemDriverTEST.sys
+
+;-------------- Service installation
+[FileSystemDriverTEST_Device.NT.Services]
+AddService = FileSystemDriverTEST,%SPSVCINST_ASSOCSERVICE%, FileSystemDriverTEST_Service_Inst
+
+; -------------- FileSystemDriverTEST driver install sections
+[FileSystemDriverTEST_Service_Inst]
+DisplayName    = %FileSystemDriverTEST.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\FileSystemDriverTEST.sys
+
+;
+;--- FileSystemDriverTEST_Device Coinstaller installation ------
+;
+
+[FileSystemDriverTEST_Device.NT.CoInstallers]
+AddReg=FileSystemDriverTEST_Device_CoInstaller_AddReg
+CopyFiles=FileSystemDriverTEST_Device_CoInstaller_CopyFiles
+
+[FileSystemDriverTEST_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[FileSystemDriverTEST_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[FileSystemDriverTEST_Device.NT.Wdf]
+KmdfService =  FileSystemDriverTEST, FileSystemDriverTEST_wdfsect
+[FileSystemDriverTEST_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+ClassName="Samples" ; TODO: edit ClassName
+DiskName = "FileSystemDriverTEST Installation Disk"
+FileSystemDriverTEST.DeviceDesc = "FileSystemDriverTEST Device"
+FileSystemDriverTEST.SVCDESC = "FileSystemDriverTEST Service"
