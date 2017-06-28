@@ -1,10 +1,9 @@
 #pragma once
-#include "FsFilter.h"
+#include "Filter.h"
 
-/////////////////////////////////////////////////////////////////////////////
-// Fast-IO Handlers
-
-BOOLEAN FsFilterFastIoCheckIfPossible(
+BOOLEAN 
+FilterEvtFastIoCheckIfPossible
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -18,7 +17,6 @@ BOOLEAN FsFilterFastIoCheckIfPossible(
 	//
 	//  Pass through logic for this type of Fast I/O
 	//
-
 	PDEVICE_OBJECT    nextDeviceObject = ((PFSFILTER_DEVICE_EXTENSION)DeviceObject->DeviceExtension)->AttachedToDeviceObject;
 	PFAST_IO_DISPATCH fastIoDispatch = nextDeviceObject->DriverObject->FastIoDispatch;
 
@@ -38,7 +36,9 @@ BOOLEAN FsFilterFastIoCheckIfPossible(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoRead(
+BOOLEAN 
+FilterEvtFastIoRead
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -52,7 +52,6 @@ BOOLEAN FsFilterFastIoRead(
 	//
 	//  Pass through logic for this type of Fast I/O
 	//
-
 	PDEVICE_OBJECT    nextDeviceObject = ((PFSFILTER_DEVICE_EXTENSION)DeviceObject->DeviceExtension)->AttachedToDeviceObject;
 	PFAST_IO_DISPATCH fastIoDispatch = nextDeviceObject->DriverObject->FastIoDispatch;
 
@@ -72,7 +71,9 @@ BOOLEAN FsFilterFastIoRead(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoWrite(
+BOOLEAN 
+FilterEvtFastIoWrite
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -106,7 +107,9 @@ BOOLEAN FsFilterFastIoWrite(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoQueryBasicInfo(
+BOOLEAN
+FilterEvtFastIoQueryBasicInfo
+(
 	__in PFILE_OBJECT       FileObject,
 	__in BOOLEAN            Wait,
 	__out PFILE_BASIC_INFORMATION Buffer,
@@ -135,7 +138,8 @@ BOOLEAN FsFilterFastIoQueryBasicInfo(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoQueryStandardInfo(
+BOOLEAN FilterEvtFastIoQueryStandardInfo
+(
 	__in PFILE_OBJECT       FileObject,
 	__in BOOLEAN            Wait,
 	__out PFILE_STANDARD_INFORMATION Buffer,
@@ -163,7 +167,9 @@ BOOLEAN FsFilterFastIoQueryStandardInfo(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoLock(
+BOOLEAN 
+FilterEvtFastIoLock
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in PLARGE_INTEGER     Length,
@@ -199,7 +205,9 @@ BOOLEAN FsFilterFastIoLock(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoUnlockSingle(
+BOOLEAN 
+FilterEvtFastIoUnlockSingle
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in PLARGE_INTEGER     Length,
@@ -231,7 +239,9 @@ BOOLEAN FsFilterFastIoUnlockSingle(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoUnlockAll(
+BOOLEAN
+FilterEvtFastIoUnlockAll 
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PEPROCESS          ProcessId,
 	__out PIO_STATUS_BLOCK  IoStatus,
@@ -257,7 +267,9 @@ BOOLEAN FsFilterFastIoUnlockAll(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoUnlockAllByKey(
+BOOLEAN
+FilterEvtFastIoUnlockAllByKey
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PVOID              ProcessId,
 	__in ULONG              Key,
@@ -285,7 +297,9 @@ BOOLEAN FsFilterFastIoUnlockAllByKey(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoDeviceControl(
+BOOLEAN 
+FilterEvtFastIoDeviceControl
+(
 	__in PFILE_OBJECT       FileObject,
 	__in BOOLEAN            Wait,
 	__in_opt PVOID          InputBuffer,
@@ -321,20 +335,17 @@ BOOLEAN FsFilterFastIoDeviceControl(
 	return FALSE;
 }
 
-VOID FsFilterFastIoDetachDevice(
+VOID FilterEvtFastIoDetachDevice(
 	__in PDEVICE_OBJECT     SourceDevice,
 	__in PDEVICE_OBJECT     TargetDevice
 )
 {
-	//
-	//  Detach from the file system's volume device object.
-	//
-
+	/* Detach */
 	IoDetachDevice(TargetDevice);
 	IoDeleteDevice(SourceDevice);
 }
 
-BOOLEAN FsFilterFastIoQueryNetworkOpenInfo(
+BOOLEAN FilterEvtFastIoQueryNetworkOpenInfo(
 	__in PFILE_OBJECT       FileObject,
 	__in BOOLEAN            Wait,
 	__out PFILE_NETWORK_OPEN_INFORMATION Buffer,
@@ -362,7 +373,7 @@ BOOLEAN FsFilterFastIoQueryNetworkOpenInfo(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoMdlRead(
+BOOLEAN FilterEvtFastIoMdlRead(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -394,7 +405,7 @@ BOOLEAN FsFilterFastIoMdlRead(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoMdlReadComplete(
+BOOLEAN FilterEvtFastIoMdlReadComplete(
 	__in PFILE_OBJECT       FileObject,
 	__in PMDL               MdlChain,
 	__in PDEVICE_OBJECT     DeviceObject
@@ -418,7 +429,7 @@ BOOLEAN FsFilterFastIoMdlReadComplete(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoPrepareMdlWrite(
+BOOLEAN FilterEvtFastIoPrepareMdlWrite(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -450,7 +461,7 @@ BOOLEAN FsFilterFastIoPrepareMdlWrite(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoMdlWriteComplete(
+BOOLEAN FilterEvtFastIoMdlWriteComplete(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in PMDL               MdlChain,
@@ -476,7 +487,8 @@ BOOLEAN FsFilterFastIoMdlWriteComplete(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoReadCompressed(
+BOOLEAN FilterEvtFastIoReadCompressed
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -489,10 +501,6 @@ BOOLEAN FsFilterFastIoReadCompressed(
 	__in PDEVICE_OBJECT     DeviceObject
 )
 {
-	//
-	//  Pass through logic for this type of Fast I/O
-	//
-
 	PDEVICE_OBJECT    nextDeviceObject = ((PFSFILTER_DEVICE_EXTENSION)DeviceObject->DeviceExtension)->AttachedToDeviceObject;
 	PFAST_IO_DISPATCH fastIoDispatch = nextDeviceObject->DriverObject->FastIoDispatch;
 
@@ -514,7 +522,9 @@ BOOLEAN FsFilterFastIoReadCompressed(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoWriteCompressed(
+BOOLEAN 
+FilterEvtFastIoWriteCompressed
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in ULONG              Length,
@@ -527,10 +537,6 @@ BOOLEAN FsFilterFastIoWriteCompressed(
 	__in PDEVICE_OBJECT     DeviceObject
 )
 {
-	//
-	//  Pass through logic for this type of Fast I/O
-	//
-
 	PDEVICE_OBJECT    nextDeviceObject = ((PFSFILTER_DEVICE_EXTENSION)DeviceObject->DeviceExtension)->AttachedToDeviceObject;
 	PFAST_IO_DISPATCH fastIoDispatch = nextDeviceObject->DriverObject->FastIoDispatch;
 
@@ -552,7 +558,9 @@ BOOLEAN FsFilterFastIoWriteCompressed(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoMdlReadCompleteCompressed(
+BOOLEAN 
+FilterEvtFastIoMdlReadCompleteCompressed
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PMDL               MdlChain,
 	__in PDEVICE_OBJECT     DeviceObject
@@ -576,7 +584,9 @@ BOOLEAN FsFilterFastIoMdlReadCompleteCompressed(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoMdlWriteCompleteCompressed(
+BOOLEAN 
+FilterEvtFastIoMdlWriteCompleteCompressed
+(
 	__in PFILE_OBJECT       FileObject,
 	__in PLARGE_INTEGER     FileOffset,
 	__in PMDL               MdlChain,
@@ -602,7 +612,9 @@ BOOLEAN FsFilterFastIoMdlWriteCompleteCompressed(
 	return FALSE;
 }
 
-BOOLEAN FsFilterFastIoQueryOpen(
+BOOLEAN 
+FilterEvtFastIoQueryOpen
+(
 	__in PIRP               Irp,
 	__out PFILE_NETWORK_OPEN_INFORMATION NetworkInformation,
 	__in PDEVICE_OBJECT     DeviceObject

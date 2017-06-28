@@ -124,6 +124,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -152,14 +153,14 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FsFilter.h" />
+    <ClCompile Include="DeviceAttachDetach.c" />
+    <ClCompile Include="FastIOroutines.c" />
+    <ClCompile Include="IRProutines.c" />
+    <ClCompile Include="main.c" />
+    <ClCompile Include="FileSystemNotification.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AttachDetach.c" />
-    <ClCompile Include="FastIo.c" />
-    <ClCompile Include="IrpDispatch.c" />
-    <ClCompile Include="main.c" />
-    <ClCompile Include="notification.c" />
+    <ClInclude Include="Filter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

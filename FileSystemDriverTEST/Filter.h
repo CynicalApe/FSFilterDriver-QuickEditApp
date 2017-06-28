@@ -1,5 +1,6 @@
 #pragma once
 #include <ntifs.h>
+#include <stdio.h>
 
 //////////////////////////////////////////////////////////////////////////
 // Defines
@@ -27,13 +28,16 @@ typedef struct _FSFILTER_DEVICE_EXTENSION
 
 //////////////////////////////////////////////////////////////////////////
 // General Functions
+VOID logData(
+	const char *data
+);
 
 NTSTATUS FilterEvtIoDispatchPassThrough(
 	__in PDEVICE_OBJECT DeviceObject,
 	__in PIRP           Irp
 );
 
-NTSTATUS FilterEvtIoDispatchCreate (
+NTSTATUS FilterEvtIoDispatchCreate(
 	__in PDEVICE_OBJECT DeviceObject,
 	__in PIRP           Irp
 );
@@ -43,12 +47,13 @@ NTSTATUS FilterEvtIoRead(
 	__in PIRP           Irp
 );
 
-NTSTATUS FilterEvtIoClose (
+NTSTATUS FilterEvtIoClose(
 	__in PDEVICE_OBJECT DeviceObject,
 	__in PIRP           Irp
 );
 
-NTSTATUS FsFilterAttachToDevice(
+
+NTSTATUS FilterDeviceEvtAttachToDevice(
 	__in PDEVICE_OBJECT         DeviceObject,
 	__out_opt PDEVICE_OBJECT*   pFilterDeviceObject
 );
@@ -267,12 +272,25 @@ NTSTATUS FilterEvtIoWrite(
 	__in PIRP           Irp
 );
 
-VOID FilterUnload(
+VOID FilterEvtUnload(
 	__in PDRIVER_OBJECT DriverObject
 );
+
+NTSTATUS FilterDeviceEvtAttachToFileSystemDevice(
+	__in PDEVICE_OBJECT DeviceObject
+);
+
+VOID FilterDeviceEvtDetachFromFileSystemDevice(
+	__in PDEVICE_OBJECT DeviceObject
+);
+
+NTSTATUS EnumerateFileSystemsAndAttach(
+	__in PDEVICE_OBJECT DeviceObject
+);
+
 //////////////////////////////////////////////////////////////////////////
 // Global data
 
-extern PDRIVER_OBJECT g_fsFilterDriverObject;
+extern PDRIVER_OBJECT myFilterObject;
 
 #pragma once

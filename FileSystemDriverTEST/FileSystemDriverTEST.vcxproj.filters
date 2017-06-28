@@ -24,25 +24,25 @@
     </Inf>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FsFilter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="AttachDetach.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FastIo.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="IrpDispatch.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="notification.c">
+    <ClCompile Include="IRProutines.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FastIOroutines.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DeviceAttachDetach.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FileSystemNotification.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Filter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

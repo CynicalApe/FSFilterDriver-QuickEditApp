@@ -1,51 +1,46 @@
-#include "FsFilter.h"
+#include "Filter.h"
 
-//////////////////////////////////////////////////////////////////////////
-// Function prototypes
 
-VOID FsFilterUnload(
-	__in PDRIVER_OBJECT DriverObject
-);
+/*File systems and file system filters are required to support IRPs,
+but they are not required to support fast I/O. However, file systems
+and file system filters must implement fast I/O routines. Even if file
+systems and file system filters do not support fast I/O, they must define
+a fast I/O routine that returns FALSE (that is, the fast I/O routine
+does not implement any functionality). */
 
-//////////////////////////////////////////////////////////////////////////
-// Global data
-
-PDRIVER_OBJECT   g_fsFilterDriverObject = NULL;
-
-FAST_IO_DISPATCH g_fastIoDispatch =
+FAST_IO_DISPATCH FilterFastIo =
 {
 	sizeof(FAST_IO_DISPATCH),
-	FsFilterFastIoCheckIfPossible,
-	FsFilterFastIoRead,
-	FsFilterFastIoWrite,
-	FsFilterFastIoQueryBasicInfo,
-	FsFilterFastIoQueryStandardInfo,
-	FsFilterFastIoLock,
-	FsFilterFastIoUnlockSingle,
-	FsFilterFastIoUnlockAll,
-	FsFilterFastIoUnlockAllByKey,
-	FsFilterFastIoDeviceControl,
+	FilterEvtFastIoCheckIfPossible,
+	FilterEvtFastIoRead,
+	FilterEvtFastIoWrite,
+	FilterEvtFastIoQueryBasicInfo,
+	FilterEvtFastIoQueryStandardInfo,
+	FilterEvtFastIoLock,
+	FilterEvtFastIoUnlockSingle,
+	FilterEvtFastIoUnlockAll,
+	FilterEvtFastIoUnlockAllByKey,
+	FilterEvtFastIoDeviceControl,
 	NULL,
 	NULL,
-	FsFilterFastIoDetachDevice,
-	FsFilterFastIoQueryNetworkOpenInfo,
+	FilterEvtFastIoDetachDevice,
+	FilterEvtFastIoQueryNetworkOpenInfo,
 	NULL,
-	FsFilterFastIoMdlRead,
-	FsFilterFastIoMdlReadComplete,
-	FsFilterFastIoPrepareMdlWrite,
-	FsFilterFastIoMdlWriteComplete,
-	FsFilterFastIoReadCompressed,
-	FsFilterFastIoWriteCompressed,
-	FsFilterFastIoMdlReadCompleteCompressed,
-	FsFilterFastIoMdlWriteCompleteCompressed,
-	FsFilterFastIoQueryOpen,
+	FilterEvtFastIoMdlRead,
+	FilterEvtFastIoMdlReadComplete,
+	FilterEvtFastIoPrepareMdlWrite,
+	FilterEvtFastIoMdlWriteComplete,
+	FilterEvtFastIoReadCompressed,
+	FilterEvtFastIoWriteCompressed,
+	FilterEvtFastIoMdlReadCompleteCompressed,
+	FilterEvtFastIoMdlWriteCompleteCompressed,
+	FilterEvtFastIoQueryOpen,
 	NULL,
 	NULL,
 	NULL,
 };
 
-//////////////////////////////////////////////////////////////////////////
-// DriverEntry - Entry point of the driver
+PDRIVER_OBJECT   myFilterObject = NULL;
 
 NTSTATUS DriverEntry(
 	__inout PDRIVER_OBJECT  DriverObject,
@@ -53,108 +48,87 @@ NTSTATUS DriverEntry(
 )
 {
 	NTSTATUS status = STATUS_SUCCESS;
-	ULONG    i = 0;
+	ULONG    counter = 0;
 
-	//ASSERT(FALSE); // This will break to debugger
+	myFilterObject = DriverObject;
 
-	//
-	// Store our driver object.
-	//
+	/* To register I/O request packet (IRP) dispatch routines, you must
+	store the entry points of these routines into the MajorFunction member
+	of the driver object. */
+	for (counter = 0; counter <= IRP_MJ_MAXIMUM_FUNCTION; ++counter)
+		DriverObject->MajorFunction[counter] = FilterEvtIoDispatchPassThrough;
 
-	g_fsFilterDriverObject = DriverObject;
+	DriverObject->MajorFunction[IRP_MJ_CREATE] = FilterEvtIoDispatchCreate;
+	DriverObject->MajorFunction[IRP_MJ_CLOSE] = FilterEvtIoClose;
+	DriverObject->MajorFunction[IRP_MJ_READ] = FilterEvtIoRead;
+	DriverObject->MajorFunction[IRP_MJ_WRITE] = FilterEvtIoWrite;
 
-	//
-	//  Initialize the driver object dispatch table.
-	//
+	/* For loop assigns a default dispatch routine for all IRP major function
+	codes. I allows us to stop I/O manager from completing any unrecognized
+	request with STATUS_INVALID_DEVICE_REQUEST by default. File system
+	filter drivers should never reject any request that they are not interested
+	in handling since those requests could be for another device. */
 
-	for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; ++i)
-	{
-		DriverObject->MajorFunction[i] = FsFilterDispatchPassThrough;
-	}
 
-	DriverObject->MajorFunction[IRP_MJ_CREATE] = FsFilterDispatchCreate;
 
-	//
-	// Set fast-io dispatch table.
-	//
+	/*To register the file system filter driver's fast I/O dispatch routines,
+	you must allocate and initialize a fast I/O dispatch table, store the
+	entry points of the fast I/O dispatch routines into the table, and store
+	the address of the table in the FastIoDispatch member of the driver
+	object.*/
 
-	DriverObject->FastIoDispatch = &g_fastIoDispatch;
+	DriverObject->FastIoDispatch = &FilterFastIo;
 
-	//
-	//  Registered callback routine for file system changes.
-	//
-
-	status = IoRegisterFsRegistrationChange(DriverObject, FsFilterNotificationCallback);
+	status = IoRegisterFsRegistrationChange(DriverObject, FilterNotificationCallback);
+	
 	if (!NT_SUCCESS(status))
-	{
 		return status;
-	}
-
-	//
-	// Set driver unload routine (debug purpose only).
-	//
-
-	DriverObject->DriverUnload = FsFilterUnload;
+	
+	/* Unlaod routine*/
+	DriverObject->DriverUnload = FilterEvtUnload;
 
 	return STATUS_SUCCESS;
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Unload routine
+/* Unload Prototype */
 
-VOID FsFilterUnload(
+VOID FilterEvtUnload (
 	__in PDRIVER_OBJECT DriverObject
 )
 {
-	ULONG           numDevices = 0;
-	ULONG           i = 0;
+	ULONG           numOfAttachedDevices = 0;
+	ULONG           counter = 0;
 	LARGE_INTEGER   interval;
-	PDEVICE_OBJECT  devList[DEVOBJ_LIST_SIZE];
+	PDEVICE_OBJECT  deviceList[DEVOBJ_LIST_SIZE];
 
 	interval.QuadPart = (5 * DELAY_ONE_SECOND); //delay 5 seconds
+	
+	/* Unregister callback */
+	IoUnregisterFsRegistrationChange(DriverObject, FilterNotificationCallback);
 
-												//
-												//  Unregistered callback routine for file system changes.
-												//
-
-	IoUnregisterFsRegistrationChange(DriverObject, FsFilterNotificationCallback);
-
-	//
-	//  This is the loop that will go through all of the devices we are attached
-	//  to and detach from them.
-	//
-
-	for (;;)
-	{
-		IoEnumerateDeviceObjectList(
+	/* Detach every device */
+	do {
+		IoEnumerateDeviceObjectList (
 			DriverObject,
-			devList,
-			sizeof(devList),
-			&numDevices);
+			deviceList,
+			sizeof(deviceList),
+			&numOfAttachedDevices
+		);
 
-		if (0 == numDevices)
-		{
-			break;
-		}
+		numOfAttachedDevices = min(numOfAttachedDevices, RTL_NUMBER_OF(deviceList));
 
-		numDevices = min(numDevices, RTL_NUMBER_OF(devList));
-
-		for (i = 0; i < numDevices; ++i)
-		{
-			FsFilterDetachFromDevice(devList[i]);
-			ObDereferenceObject(devList[i]);
+		for (counter = 0; counter < numOfAttachedDevices; counter++) {
+			FilterDeviceEvtDetachFromDevice(deviceList[counter]);
+			ObDereferenceObject(deviceList[counter]);
 		}
 
 		KeDelayExecutionThread(KernelMode, FALSE, &interval);
-	}
+	} while (numOfAttachedDevices != 0);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Misc
-
-BOOLEAN FsFilterIsMyDeviceObject(
+BOOLEAN FilterDeviceEvtIsMyDeviceObject(
 	__in PDEVICE_OBJECT DeviceObject
 )
 {
-	return DeviceObject->DriverObject == g_fsFilterDriverObject;
+	return DeviceObject->DriverObject == myFilterObject;
 }
