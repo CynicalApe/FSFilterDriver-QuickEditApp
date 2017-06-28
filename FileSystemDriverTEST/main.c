@@ -86,7 +86,6 @@ NTSTATUS DriverEntry(
 	
 	/* Unlaod routine*/
 	DriverObject->DriverUnload = FilterEvtUnload;
-
 	return STATUS_SUCCESS;
 }
 

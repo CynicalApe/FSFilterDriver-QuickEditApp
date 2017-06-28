@@ -2,9 +2,6 @@
 #include <ntifs.h>
 #include <stdio.h>
 
-//////////////////////////////////////////////////////////////////////////
-// Defines
-
 #define DELAY_ONE_MICROSECOND   (-10)
 #define DELAY_ONE_MILLISECOND   (DELAY_ONE_MICROSECOND * 1000)
 #define DELAY_ONE_SECOND        (DELAY_ONE_MILLISECOND * 1000)
@@ -18,17 +15,16 @@
     (FIELD_OFFSET(FAST_IO_DISPATCH, _FieldName) + sizeof(void *))) && \
     ((_FastIoDispatchPtr)->_FieldName != NULL))
 
-//////////////////////////////////////////////////////////////////////////
-// Structures
 
+/* DEV EXT STRUCT */
 typedef struct _FSFILTER_DEVICE_EXTENSION
 {
 	PDEVICE_OBJECT AttachedToDeviceObject;
 } FSFILTER_DEVICE_EXTENSION, *PFSFILTER_DEVICE_EXTENSION;
 
-//////////////////////////////////////////////////////////////////////////
-// General Functions
-VOID logData(
+/*Function Prototypes*/
+NTSTATUS
+logData(
 	const char *data
 );
 
@@ -288,9 +284,4 @@ NTSTATUS EnumerateFileSystemsAndAttach(
 	__in PDEVICE_OBJECT DeviceObject
 );
 
-//////////////////////////////////////////////////////////////////////////
-// Global data
-
 extern PDRIVER_OBJECT myFilterObject;
-
-#pragma once

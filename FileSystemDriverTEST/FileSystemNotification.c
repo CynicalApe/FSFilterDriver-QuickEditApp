@@ -3,7 +3,8 @@
 /*This routine is invoked whenever a file system has either registered or
 unregistered itself as an active file system. */
 
-VOID FilterNotificationCallback(
+VOID FilterNotificationCallback
+(
 	__in PDEVICE_OBJECT DeviceObject,
 	__in BOOLEAN        FsActive
 )
@@ -71,7 +72,7 @@ NTSTATUS EnumerateFileSystemsAndAttach(
 	ULONG           i = 0;
 	PDEVICE_OBJECT  devList[DEVOBJ_LIST_SIZE];
 
-	/* Get Device LIst*/
+	/* Get the connected device list*/
 	status = IoEnumerateDeviceObjectList(
 		DeviceObject->DriverObject,
 		devList,

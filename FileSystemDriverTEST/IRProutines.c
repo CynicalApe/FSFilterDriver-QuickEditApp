@@ -1,23 +1,25 @@
 #include "Filter.h"
 #include "Ntstrsafe.h "
-#define  BUFFER_SIZE 500
+#define  BUFFER_SIZE 1024
 
-void 
-logData(
+NTSTATUS 
+logData
+(
 	const char *data
 )
 {
 	UNICODE_STRING     uniName;
 	OBJECT_ATTRIBUTES  objAttr;
-
-	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\example.txt");  // or L"\\SystemRoot\\example.txt"
-	InitializeObjectAttributes(&objAttr, &uniName,
-		OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-		NULL, NULL);
-
 	HANDLE   handle;
 	NTSTATUS ntstatus;
 	IO_STATUS_BLOCK    ioStatusBlock;
+	CHAR     buffer[BUFFER_SIZE];
+	size_t  cb;
+
+	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\myfilterlog.txt");  // or L"\\SystemRoot\\example.txt"
+	InitializeObjectAttributes(&objAttr, &uniName,
+		OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+		NULL, NULL);
 
 	// Do not try to perform any file operations at higher IRQL levels.
 	// Instead, you may use a work item or a system worker thread to perform file operations.
@@ -26,17 +28,15 @@ logData(
 		return STATUS_INVALID_DEVICE_STATE;
 
 	ntstatus = ZwCreateFile(&handle,
-		GENERIC_WRITE,
+		FILE_APPEND_DATA,
 		&objAttr, &ioStatusBlock, NULL,
 		FILE_ATTRIBUTE_NORMAL,
-		0,
-		FILE_OVERWRITE_IF,
+		FILE_SHARE_READ,
+		FILE_OPEN_IF,
 		FILE_SYNCHRONOUS_IO_NONALERT,
 		NULL, 0);
 
 
-	CHAR     buffer[BUFFER_SIZE];
-	size_t  cb;
 
 	if (NT_SUCCESS(ntstatus)) {
 		ntstatus = RtlStringCbPrintfA(buffer, sizeof(buffer), data, 0x0);
@@ -49,6 +49,7 @@ logData(
 		}
 		ZwClose(handle);
 	}
+	return STATUS_SUCCESS;
 }
 
 NTSTATUS
@@ -74,20 +75,6 @@ FilterEvtIoDispatchCreate
 }
 
 NTSTATUS 
-FilterEvtIoWrite 
-(
-	__in PDEVICE_OBJECT DeviceObject,
-	__in PIRP           Irp
-)
-{
-	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	DbgPrint("READ REQUEST: %wZ \n", &pFileObject->FileName);
-	//logData(("WRITE REQUEST: %wZ \n", &pFileObject->FileName));
-	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
-}
-
-
-NTSTATUS 
 FilterEvtIoClose 
 (
 	__in PDEVICE_OBJECT DeviceObject,
@@ -106,7 +93,29 @@ FilterEvtIoRead
 )
 {
 	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	DbgPrint("IRP DISPATCH OPENED FOR READING: %wZ\n", &pFileObject->FileName);
-	//logData(("READ REQUEST: %wZ \n", &pFileObject->FileName));
+	char buffer[BUFFER_SIZE];
+	sprintf(buffer, "READ REQUEST: %wZ \n", &pFileObject->FileName);
+	if (strstr(buffer, "Desktop") != NULL) {
+		logData(buffer);
+		DbgPrint(" %wZ => OPENED FOR READING \n", &pFileObject->FileName);
+	}
+	
+	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
+}
+
+NTSTATUS
+FilterEvtIoWrite
+(
+	__in PDEVICE_OBJECT DeviceObject,
+	__in PIRP           Irp
+)
+{
+	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
+	char buffer[BUFFER_SIZE];
+	sprintf(buffer, "WRITE REQUEST: %wZ \n", &pFileObject->FileName);
+	if (strstr(buffer, "Desktop") != NULL) {
+		logData(buffer);
+		DbgPrint(" %wZ => OPENED FOR WRITING \n", &pFileObject->FileName);
+	}
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
