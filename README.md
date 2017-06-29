@@ -11,5 +11,5 @@
 * log file can be found in C:\mylogfile.txt, it can be read, but can't be written on or deleted.
 
 # References
-https://www.codeproject.com/Articles/43586/File-System-Filter-Driver-Tutorial
-https://docs.microsoft.com/en-us/windows-hardware/drivers/ifs/file-system-filter-drivers
+* https://www.codeproject.com/Articles/43586/File-System-Filter-Driver-Tutorial
+* https://docs.microsoft.com/en-us/windows-hardware/drivers/ifs/file-system-filter-drivers
