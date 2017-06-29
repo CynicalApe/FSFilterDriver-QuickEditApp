@@ -4,11 +4,12 @@
 
 [Version]
 Signature="$WINDOWS NT$"
-Class=Sample ; TODO: edit Class
-ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171} ; TODO: edit ClassGuid
+Class=ActivityMonitor ; TODO: edit Class Sample
+ClassGuid={b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2} ; TODO: edit ClassGuid {78A1C341-4539-11d3-B88D-00C04FAD5171} 
 Provider=%ManufacturerName%
 CatalogFile=FileSystemDriverTEST.cat
 DriverVer= ; TODO: set DriverVer in stampinf property pages
+LoadOrderGroup=
 
 [DestinationDirs]
 DefaultDestDir = 12

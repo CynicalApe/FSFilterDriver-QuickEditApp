@@ -14,9 +14,6 @@ FilterEvtFastIoCheckIfPossible
 	__in PDEVICE_OBJECT     DeviceObject
 )
 {
-	//
-	//  Pass through logic for this type of Fast I/O
-	//
 	PDEVICE_OBJECT    nextDeviceObject = ((PFSFILTER_DEVICE_EXTENSION)DeviceObject->DeviceExtension)->AttachedToDeviceObject;
 	PFAST_IO_DISPATCH fastIoDispatch = nextDeviceObject->DriverObject->FastIoDispatch;
 

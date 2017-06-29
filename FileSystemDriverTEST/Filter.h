@@ -25,13 +25,27 @@ typedef struct _FSFILTER_DEVICE_EXTENSION
 /*Function Prototypes*/
 NTSTATUS
 logData(
+	UNICODE_STRING fileName,
 	const char *data
 );
 
+
+BOOLEAN
+DoesContain
+(
+	UNICODE_STRING fileName,
+	const char* bannedString
+);
 NTSTATUS FilterEvtIoDispatchPassThrough(
 	__in PDEVICE_OBJECT DeviceObject,
 	__in PIRP           Irp
 );
+
+NTSTATUS FilterEvtIoQueryInformation(
+	__in PDEVICE_OBJECT DeviceObject,
+	__in PIRP           Irp
+);
+
 
 NTSTATUS FilterEvtIoDispatchCreate(
 	__in PDEVICE_OBJECT DeviceObject,
@@ -48,6 +62,10 @@ NTSTATUS FilterEvtIoClose(
 	__in PIRP           Irp
 );
 
+NTSTATUS FilterEvtIoSetInformation (
+__in PDEVICE_OBJECT DeviceObject,
+__in PIRP           Irp
+);
 
 NTSTATUS FilterDeviceEvtAttachToDevice(
 	__in PDEVICE_OBJECT         DeviceObject,

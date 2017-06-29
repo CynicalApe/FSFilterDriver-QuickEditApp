@@ -5,6 +5,7 @@
 NTSTATUS 
 logData
 (
+	UNICODE_STRING fileName,
 	const char *data
 )
 {
@@ -15,6 +16,10 @@ logData
 	IO_STATUS_BLOCK    ioStatusBlock;
 	CHAR     buffer[BUFFER_SIZE];
 	size_t  cb;
+
+	char errorBuffer[BUFFER_SIZE];
+	sprintf(errorBuffer, "%s => %wZ \n", data, &fileName);
+
 
 	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\myfilterlog.txt");  // or L"\\SystemRoot\\example.txt"
 	InitializeObjectAttributes(&objAttr, &uniName,
@@ -27,22 +32,26 @@ logData
 	if (KeGetCurrentIrql() != PASSIVE_LEVEL)
 		return STATUS_INVALID_DEVICE_STATE;
 
-	ntstatus = ZwCreateFile(&handle,
+	ntstatus = ZwCreateFile(
+		&handle,
 		FILE_APPEND_DATA,
-		&objAttr, &ioStatusBlock, NULL,
+		&objAttr, 
+		&ioStatusBlock,
+		NULL,
 		FILE_ATTRIBUTE_NORMAL,
 		FILE_SHARE_READ,
 		FILE_OPEN_IF,
 		FILE_SYNCHRONOUS_IO_NONALERT,
 		NULL, 0);
 
-
-
-	if (NT_SUCCESS(ntstatus)) {
-		ntstatus = RtlStringCbPrintfA(buffer, sizeof(buffer), data, 0x0);
-		if (NT_SUCCESS(ntstatus)) {
+	if (NT_SUCCESS(ntstatus)) 
+	{
+		ntstatus = RtlStringCbPrintfA(buffer, sizeof(buffer), errorBuffer, 0x0);
+		if (NT_SUCCESS(ntstatus)) 
+		{
 			ntstatus = RtlStringCbLengthA(buffer, sizeof(buffer), &cb);
-			if (NT_SUCCESS(ntstatus)) {
+			if (NT_SUCCESS(ntstatus))
+			{
 				ntstatus = ZwWriteFile(handle, NULL, NULL, NULL, &ioStatusBlock,
 					buffer, cb, NULL, NULL);
 			}
@@ -50,6 +59,22 @@ logData
 		ZwClose(handle);
 	}
 	return STATUS_SUCCESS;
+}
+
+BOOLEAN
+DoesContain
+(
+	UNICODE_STRING fileName,
+	const char* bannedString
+)
+{
+	char buffer[BUFFER_SIZE];
+	sprintf(buffer, "%wZ", &fileName);
+
+	if (strstr(buffer, bannedString) != NULL)
+		return TRUE;
+
+	return FALSE;
 }
 
 NTSTATUS
@@ -64,6 +89,12 @@ FilterEvtIoDispatchPassThrough
 	return IoCallDriver(pDevExt->AttachedToDeviceObject, Irp);
 }
 
+NTSTATUS FilterEvtIoQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
+}
+
+/* File Handle IRP */
 NTSTATUS 
 FilterEvtIoDispatchCreate 
 (
@@ -71,6 +102,25 @@ FilterEvtIoDispatchCreate
 	__in PIRP           Irp
 )
 {
+	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
+	UNICODE_STRING fileName = pFileObject->FileName;
+
+
+	if (DoesContain(fileName, "Desktop"))
+	{
+		if (DoesContain(fileName, ".png") ||
+			DoesContain(fileName, ".bmp"))
+		{
+			DbgPrint("CREATE ACCESS DENIED => %wZ \n", &fileName);
+			logData(fileName, "CREATE ACCESS DENIED");
+			return STATUS_CANCELLED;
+		}
+		DbgPrint("CREATE REQUEST => %wZ \n", &fileName);
+		logData(pFileObject->FileName, "CREATE REQUEST");
+	}
+
+	
+	
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
@@ -84,7 +134,33 @@ FilterEvtIoClose
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
+/* File File Information IRP */
+NTSTATUS FilterEvtIoSetInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
 
+	UNICODE_STRING fileName = pFileObject->FileName;
+
+
+	if (DoesContain(fileName, "Desktop"))
+	{
+		if (DoesContain(fileName, ".txt"))
+		{
+			DbgPrint("INFORMATION CHANGE DENIED => %wZ \n", &fileName);
+			logData(fileName, "INFORMATION CHANGE DENIED");
+			return STATUS_CANCELLED;
+		}
+		DbgPrint("INFORMATION CHANGE => %wZ \n", &fileName);
+		logData(pFileObject->FileName, "INFORMATION CHANGE");
+	}
+
+	if (DoesContain(fileName, "myfilterlog.txt"))
+		return STATUS_CANCELLED;
+
+	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
+}
+
+/* From device to file system */
 NTSTATUS
 FilterEvtIoRead
 (
@@ -93,16 +169,14 @@ FilterEvtIoRead
 )
 {
 	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	char buffer[BUFFER_SIZE];
-	sprintf(buffer, "READ REQUEST: %wZ \n", &pFileObject->FileName);
-	if (strstr(buffer, "Desktop") != NULL) {
-		logData(buffer);
-		DbgPrint(" %wZ => OPENED FOR READING \n", &pFileObject->FileName);
-	}
 	
+	UNICODE_STRING fileName = pFileObject->FileName;
+
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
+
+/* from file system to device */
 NTSTATUS
 FilterEvtIoWrite
 (
@@ -111,11 +185,20 @@ FilterEvtIoWrite
 )
 {
 	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	char buffer[BUFFER_SIZE];
-	sprintf(buffer, "WRITE REQUEST: %wZ \n", &pFileObject->FileName);
-	if (strstr(buffer, "Desktop") != NULL) {
-		logData(buffer);
-		DbgPrint(" %wZ => OPENED FOR WRITING \n", &pFileObject->FileName);
+	UNICODE_STRING fileName = pFileObject->FileName;
+
+	/* Can read .txt files but can't edit. */
+	if (DoesContain(fileName, "Desktop"))
+	{
+		if (DoesContain(fileName, ".txt"))
+		{
+			DbgPrint("WRITE ACCESS DENIED => %wZ \n", &fileName);
+			logData(fileName, "WRITE ACCESS DENIED");
+			return STATUS_CANCELLED;
+		}
+		DbgPrint("WRITE REQUEST => %wZ \n", &fileName);
+		logData(pFileObject->FileName, "WRITE REQUEST");
 	}
+
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }

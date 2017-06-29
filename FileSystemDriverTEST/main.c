@@ -62,6 +62,8 @@ NTSTATUS DriverEntry(
 	DriverObject->MajorFunction[IRP_MJ_CLOSE] = FilterEvtIoClose;
 	DriverObject->MajorFunction[IRP_MJ_READ] = FilterEvtIoRead;
 	DriverObject->MajorFunction[IRP_MJ_WRITE] = FilterEvtIoWrite;
+	DriverObject->MajorFunction[IRP_MJ_SET_INFORMATION] = FilterEvtIoSetInformation;
+	DriverObject->MajorFunction[IRP_MJ_QUERY_INFORMATION] = FilterEvtIoQueryInformation;
 
 	/* For loop assigns a default dispatch routine for all IRP major function
 	codes. I allows us to stop I/O manager from completing any unrecognized
