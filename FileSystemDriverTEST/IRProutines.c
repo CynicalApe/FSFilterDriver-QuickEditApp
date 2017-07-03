@@ -231,18 +231,5 @@ FilterEvtIoWrite
 )
 {
 	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
-
-
-	/* Can read .txt files but can't edit. */
-	if (ban && DoesContain(fileName, ban))
-	{
-		if (DoesContain(fileName, ".txt"))
-		{
-			logData(fileName, "WRITE ACCESS DENIED");
-			return STATUS_CANCELLED;
-		}
-		logData(fileName, "WRITE REQUEST");
-	}
-
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
