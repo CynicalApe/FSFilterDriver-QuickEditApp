@@ -88,6 +88,7 @@ NTSTATUS DriverEntry(
 	
 	/* Unlaod routine*/
 	DriverObject->DriverUnload = FilterEvtUnload;
+	readRestrictions();
 	return STATUS_SUCCESS;
 }
 
@@ -125,6 +126,11 @@ VOID FilterEvtUnload (
 
 		KeDelayExecutionThread(KernelMode, FALSE, &interval);
 	} while (numOfAttachedDevices != 0);
+
+	if (ban) {
+		DbgPrint("MEMORY FREED");
+		ExFreePoolWithTag(ban, 'ban1');
+	}
 }
 
 BOOLEAN FilterDeviceEvtIsMyDeviceObject(

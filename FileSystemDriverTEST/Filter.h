@@ -15,6 +15,7 @@
     (FIELD_OFFSET(FAST_IO_DISPATCH, _FieldName) + sizeof(void *))) && \
     ((_FastIoDispatchPtr)->_FieldName != NULL))
 
+char* ban;
 
 /* DEV EXT STRUCT */
 typedef struct _FSFILTER_DEVICE_EXTENSION
@@ -23,9 +24,13 @@ typedef struct _FSFILTER_DEVICE_EXTENSION
 } FSFILTER_DEVICE_EXTENSION, *PFSFILTER_DEVICE_EXTENSION;
 
 /*Function Prototypes*/
-NTSTATUS
+VOID
+readRestrictions();
+
+
+VOID
 logData(
-	UNICODE_STRING fileName,
+	PUNICODE_STRING fileName,
 	const char *data
 );
 
@@ -33,7 +38,7 @@ logData(
 BOOLEAN
 DoesContain
 (
-	UNICODE_STRING fileName,
+	PUNICODE_STRING fileName,
 	const char* bannedString
 );
 NTSTATUS FilterEvtIoDispatchPassThrough(
@@ -301,5 +306,6 @@ VOID FilterDeviceEvtDetachFromFileSystemDevice(
 NTSTATUS EnumerateFileSystemsAndAttach(
 	__in PDEVICE_OBJECT DeviceObject
 );
+
 
 extern PDRIVER_OBJECT myFilterObject;

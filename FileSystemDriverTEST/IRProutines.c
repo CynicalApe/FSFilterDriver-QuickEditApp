@@ -2,10 +2,65 @@
 #include "Ntstrsafe.h "
 #define  BUFFER_SIZE 1024
 
-NTSTATUS 
+VOID
+readRestrictions()
+{
+	UNICODE_STRING     uniName;
+	OBJECT_ATTRIBUTES  objAttr;
+	HANDLE   handle;
+	NTSTATUS ntstatus;
+	IO_STATUS_BLOCK    ioStatusBlock;
+	int cb = 0;
+	char *errorBuffer = (char *)ExAllocatePoolWithTag(NonPagedPool, BUFFER_SIZE, 'buf1');
+
+	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\restrictions.txt");  // or L"\\SystemRoot\\example.txt"
+	InitializeObjectAttributes(&objAttr, &uniName,
+		OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+		NULL, NULL);
+
+	// Do not try to perform any file operations at higher IRQL levels.
+	// Instead, you may use a work item or a system worker thread to perform file operations.
+
+	if (KeGetCurrentIrql() != PASSIVE_LEVEL)
+		return STATUS_INVALID_DEVICE_STATE;
+
+	ntstatus = ZwCreateFile
+	(
+		&handle,
+		FILE_APPEND_DATA,
+		&objAttr,
+		&ioStatusBlock,
+		NULL,
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_READ,
+		FILE_OPEN_IF,
+		FILE_SYNCHRONOUS_IO_NONALERT,
+		NULL,
+		0
+	);
+
+	if (NT_SUCCESS(ntstatus))
+	{
+		ntstatus = ZwReadFile(handle, NULL, NULL, NULL, &ioStatusBlock,
+			errorBuffer, BUFFER_SIZE, NULL, NULL);
+
+		for (; cb < BUFFER_SIZE && errorBuffer[cb] != '#'; cb++);
+		ban = (char *)ExAllocatePoolWithTag(NonPagedPool, cb, 'ban1');
+		for (int i = 0; i < cb; i++) {
+			ban[i] = errorBuffer[i];
+		}
+		DbgPrint("BAN: %s", ban);
+		ZwClose(handle);
+	}
+
+	ExFreePoolWithTag(errorBuffer, 'buf1');
+}
+
+
+VOID
 logData
 (
-	UNICODE_STRING fileName,
+	PUNICODE_STRING fileName,
 	const char *data
 )
 {
@@ -14,12 +69,16 @@ logData
 	HANDLE   handle;
 	NTSTATUS ntstatus;
 	IO_STATUS_BLOCK    ioStatusBlock;
-	CHAR     buffer[BUFFER_SIZE];
-	size_t  cb;
+	int cb = 0;
+	char *errorBuffer = (char *)ExAllocatePoolWithTag(NonPagedPool, BUFFER_SIZE, 'buf1');
+	sprintf(errorBuffer, "%s => %wZ \r\n", data, &(*fileName));
 
-	char errorBuffer[BUFFER_SIZE];
-	sprintf(errorBuffer, "%s => %wZ \n", data, &fileName);
+	if (strstr(errorBuffer, "myfilterlog") != NULL || strstr(errorBuffer, "restrictions"))
+		goto Exit;
 
+	for (; cb < BUFFER_SIZE && errorBuffer[cb] != '\r'; cb++);
+	errorBuffer[cb++] = '\r';
+	errorBuffer[cb++] = '\n';
 
 	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\myfilterlog.txt");  // or L"\\SystemRoot\\example.txt"
 	InitializeObjectAttributes(&objAttr, &uniName,
@@ -32,48 +91,50 @@ logData
 	if (KeGetCurrentIrql() != PASSIVE_LEVEL)
 		return STATUS_INVALID_DEVICE_STATE;
 
-	ntstatus = ZwCreateFile(
+	ntstatus = ZwCreateFile
+	(
 		&handle,
 		FILE_APPEND_DATA,
-		&objAttr, 
+		&objAttr,
 		&ioStatusBlock,
 		NULL,
 		FILE_ATTRIBUTE_NORMAL,
 		FILE_SHARE_READ,
 		FILE_OPEN_IF,
 		FILE_SYNCHRONOUS_IO_NONALERT,
-		NULL, 0);
+		NULL,
+		0
+	);
 
-	if (NT_SUCCESS(ntstatus)) 
+	if (NT_SUCCESS(ntstatus))
 	{
-		ntstatus = RtlStringCbPrintfA(buffer, sizeof(buffer), errorBuffer, 0x0);
-		if (NT_SUCCESS(ntstatus)) 
-		{
-			ntstatus = RtlStringCbLengthA(buffer, sizeof(buffer), &cb);
-			if (NT_SUCCESS(ntstatus))
-			{
-				ntstatus = ZwWriteFile(handle, NULL, NULL, NULL, &ioStatusBlock,
-					buffer, cb, NULL, NULL);
-			}
-		}
+		ntstatus = ZwWriteFile(handle, NULL, NULL, NULL, &ioStatusBlock,
+			errorBuffer, cb, NULL, NULL);
 		ZwClose(handle);
 	}
-	return STATUS_SUCCESS;
+Exit:
+	ExFreePoolWithTag(errorBuffer, 'buf1');
 }
+
+
 
 BOOLEAN
 DoesContain
 (
-	UNICODE_STRING fileName,
+	PUNICODE_STRING fileName,
 	const char* bannedString
 )
 {
-	char buffer[BUFFER_SIZE];
-	sprintf(buffer, "%wZ", &fileName);
+	char *buffer = (char *)ExAllocatePoolWithTag(NonPagedPool, fileName->Length, 'buf1');
+	sprintf(buffer, "%wZ", &(*fileName));
 
 	if (strstr(buffer, bannedString) != NULL)
+	{
+		ExFreePoolWithTag(buffer, 'buf1');
 		return TRUE;
+	}
 
+	ExFreePoolWithTag(buffer, 'buf1');
 	return FALSE;
 }
 
@@ -102,25 +163,19 @@ FilterEvtIoDispatchCreate
 	__in PIRP           Irp
 )
 {
-	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	UNICODE_STRING fileName = pFileObject->FileName;
+	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
 
-
-	if (DoesContain(fileName, "Desktop"))
+	if (ban && DoesContain(fileName, ban))
 	{
 		if (DoesContain(fileName, ".png") ||
 			DoesContain(fileName, ".bmp"))
 		{
-			DbgPrint("CREATE ACCESS DENIED => %wZ \n", &fileName);
+			DbgPrint("CREATE ACCESS DENIED => %s", *fileName);
 			logData(fileName, "CREATE ACCESS DENIED");
 			return STATUS_CANCELLED;
 		}
-		DbgPrint("CREATE REQUEST => %wZ \n", &fileName);
-		logData(pFileObject->FileName, "CREATE REQUEST");
 	}
 
-	
-	
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
@@ -137,21 +192,16 @@ FilterEvtIoClose
 /* File File Information IRP */
 NTSTATUS FilterEvtIoSetInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
-	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
+	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
 
-	UNICODE_STRING fileName = pFileObject->FileName;
-
-
-	if (DoesContain(fileName, "Desktop"))
+	if (ban && DoesContain(fileName, ban) || DoesContain(fileName,"myfilterlog"))
 	{
 		if (DoesContain(fileName, ".txt"))
 		{
-			DbgPrint("INFORMATION CHANGE DENIED => %wZ \n", &fileName);
 			logData(fileName, "INFORMATION CHANGE DENIED");
 			return STATUS_CANCELLED;
 		}
-		DbgPrint("INFORMATION CHANGE => %wZ \n", &fileName);
-		logData(pFileObject->FileName, "INFORMATION CHANGE");
+		logData(fileName, "INFORMATION CHANGE");
 	}
 
 	if (DoesContain(fileName, "myfilterlog.txt"))
@@ -168,10 +218,6 @@ FilterEvtIoRead
 	__in PIRP           Irp
 )
 {
-	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	
-	UNICODE_STRING fileName = pFileObject->FileName;
-
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
@@ -184,20 +230,18 @@ FilterEvtIoWrite
 	__in PIRP           Irp
 )
 {
-	PFILE_OBJECT pFileObject = IoGetCurrentIrpStackLocation(Irp)->FileObject;
-	UNICODE_STRING fileName = pFileObject->FileName;
+	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
+
 
 	/* Can read .txt files but can't edit. */
-	if (DoesContain(fileName, "Desktop"))
+	if (ban && DoesContain(fileName, ban))
 	{
 		if (DoesContain(fileName, ".txt"))
 		{
-			DbgPrint("WRITE ACCESS DENIED => %wZ \n", &fileName);
 			logData(fileName, "WRITE ACCESS DENIED");
 			return STATUS_CANCELLED;
 		}
-		DbgPrint("WRITE REQUEST => %wZ \n", &fileName);
-		logData(pFileObject->FileName, "WRITE REQUEST");
+		logData(fileName, "WRITE REQUEST");
 	}
 
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
