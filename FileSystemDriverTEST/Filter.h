@@ -15,7 +15,16 @@
     (FIELD_OFFSET(FAST_IO_DISPATCH, _FieldName) + sizeof(void *))) && \
     ((_FastIoDispatchPtr)->_FieldName != NULL))
 
-char* ban;
+char *ban;
+char** noAccess;
+char** readOnlyAccess;
+char** writeOnlyAccess;
+char** completeAccess;
+
+short int noAccCount;
+short int readAccCount;
+short int writeAccCount;
+short int completeAccCount;
 
 /* DEV EXT STRUCT */
 typedef struct _FSFILTER_DEVICE_EXTENSION
@@ -39,7 +48,8 @@ BOOLEAN
 DoesContain
 (
 	PUNICODE_STRING fileName,
-	const char* bannedString
+	const char** bannedStringArray,
+	const short int arraySize
 );
 NTSTATUS FilterEvtIoDispatchPassThrough(
 	__in PDEVICE_OBJECT DeviceObject,

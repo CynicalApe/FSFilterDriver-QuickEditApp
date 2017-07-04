@@ -127,10 +127,35 @@ VOID FilterEvtUnload (
 		KeDelayExecutionThread(KernelMode, FALSE, &interval);
 	} while (numOfAttachedDevices != 0);
 
-	if (ban) {
-		DbgPrint("MEMORY FREED");
-		ExFreePoolWithTag(ban, 'ban1');
+	for (int i = 0; i < noAccCount; i++)
+	{
+		DbgPrint("no access: %s \n", noAccess[i]);
+		ExFreePoolWithTag(noAccess[i], 'buft');
 	}
+	for (int i = 0; i < readAccCount; i++)
+	{
+		DbgPrint("read access: %s \n", readOnlyAccess[i]);
+		ExFreePoolWithTag(readOnlyAccess[i], 'buft');
+	}
+	for (int i = 0; i < writeAccCount; i++)
+	{
+		DbgPrint("write access: %s \n", writeOnlyAccess[i]);
+		ExFreePoolWithTag(writeOnlyAccess[i], 'buft');
+	}
+	for (int i = 0; i < completeAccCount; i++)
+	{
+		DbgPrint("complete access: %s \n", completeAccess[i]);
+		ExFreePoolWithTag(completeAccess[i], 'buft');
+	}
+
+	if (noAccess)
+		ExFreePoolWithTag(noAccess, 'buf2');
+	if (readOnlyAccess)
+		ExFreePoolWithTag(readOnlyAccess, 'buf3');
+	if (writeOnlyAccess)
+		ExFreePoolWithTag(writeOnlyAccess, 'buf4');
+	if (completeAccess)
+		ExFreePoolWithTag(completeAccess, 'buf5');
 }
 
 BOOLEAN FilterDeviceEvtIsMyDeviceObject(

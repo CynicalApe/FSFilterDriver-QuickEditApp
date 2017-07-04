@@ -2,6 +2,10 @@
 #include "Ntstrsafe.h "
 #define  BUFFER_SIZE 1024
 
+#include "Filter.h"
+#include "Ntstrsafe.h "
+#define  BUFFER_SIZE 1024
+
 VOID
 readRestrictions()
 {
@@ -11,7 +15,32 @@ readRestrictions()
 	NTSTATUS ntstatus;
 	IO_STATUS_BLOCK    ioStatusBlock;
 	int cb = 0;
-	char *errorBuffer = (char *)ExAllocatePoolWithTag(NonPagedPool, BUFFER_SIZE, 'buf1');
+	char *buffer = (char *)ExAllocatePoolWithTag(NonPagedPool, BUFFER_SIZE, 'buf1');
+	
+	for (int i = 0; i < BUFFER_SIZE; i++)
+		buffer[i] = '\0';
+	noAccCount = 0;
+	readAccCount = 0;
+	writeAccCount = 0;
+	completeAccCount = 0;
+
+	DbgPrint("UPDATE10");
+	noAccess = (char**)ExAllocatePoolWithTag(NonPagedPool, 10 * sizeof(char*), 'buf2');
+	readOnlyAccess = (char**)ExAllocatePoolWithTag(NonPagedPool, 10 * sizeof(char*), 'buf3');
+	writeOnlyAccess = (char**)ExAllocatePoolWithTag(NonPagedPool, 10 * sizeof(char*), 'buf4');
+	completeAccess = (char**)ExAllocatePoolWithTag(NonPagedPool, 10 * sizeof(char*), 'buf5');
+
+	for (int i = 0; i < 10; i++)
+		noAccess[i] = NULL;
+
+	for (int i = 0; i < 10; i++)
+		readOnlyAccess[i] = NULL;
+
+	for (int i = 0; i < 10; i++)
+		writeOnlyAccess[i] = NULL;
+
+	for (int i = 0; i < 10; i++)
+		completeAccess[i] = NULL;
 
 	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\restrictions.txt");  // or L"\\SystemRoot\\example.txt"
 	InitializeObjectAttributes(&objAttr, &uniName,
@@ -39,22 +68,70 @@ readRestrictions()
 		0
 	);
 
+	char **destinationBuffer = NULL;
+	
+
+	char currentbuffer[BUFFER_SIZE];
+	char ch = "=";
+	int filepathend = 0;
 	if (NT_SUCCESS(ntstatus))
 	{
 		ntstatus = ZwReadFile(handle, NULL, NULL, NULL, &ioStatusBlock,
-			errorBuffer, BUFFER_SIZE, NULL, NULL);
-
-		for (; cb < BUFFER_SIZE && errorBuffer[cb] != '#'; cb++);
+			buffer, BUFFER_SIZE, 0, NULL);
+		for (int i = 0; ch != NULL && i < BUFFER_SIZE; i++)
+		{
+			ch = buffer[i];
+			if (ch == ':')
+			{
+				ch = buffer[++i];
+				switch (ch)
+				{
+				case('0'):
+					destinationBuffer = &noAccess[noAccCount++];
+					break;
+				case('1'):
+					destinationBuffer = &readOnlyAccess[readAccCount++];
+					break;
+				case('5'):
+					destinationBuffer = &writeOnlyAccess[writeAccCount++];
+					break;
+				case('7'):
+					destinationBuffer = &completeAccess[completeAccCount++];
+					break;
+				default:
+					break;
+				}
+				i++;
+			}
+			else if (ch == ';')
+			{
+				//file path finished;
+				char *temp = (char*)ExAllocatePoolWithTag(NonPagedPool, filepathend + 1, 'buf2');
+				temp[filepathend] = '\0';
+				for (int q = 0; q < filepathend; q++)
+				{
+					temp[q] = currentbuffer[q];
+				}
+				*destinationBuffer = temp;
+				filepathend = 0;
+			}
+			else if (ch != '\n' && ch != ' ' && ch != '\r')
+			{
+				currentbuffer[filepathend++] = ch;
+			}
+		}
+		for (; cb < BUFFER_SIZE && buffer[cb] != '#'; cb++);
 		ban = (char *)ExAllocatePoolWithTag(NonPagedPool, cb, 'ban1');
 		for (int i = 0; i < cb; i++) {
-			ban[i] = errorBuffer[i];
+			ban[i] = buffer[i];
 		}
-		DbgPrint("BAN: %s", ban);
+		DbgPrint("RESTRICTION LIST: \n %s", ban);
 		ZwClose(handle);
 	}
 
-	ExFreePoolWithTag(errorBuffer, 'buf1');
+	ExFreePoolWithTag(buffer, 'buf1');
 }
+
 
 
 VOID
@@ -122,16 +199,20 @@ BOOLEAN
 DoesContain
 (
 	PUNICODE_STRING fileName,
-	const char* bannedString
+	const char** bannedStringArray,
+	const short int arraySize
 )
 {
 	char *buffer = (char *)ExAllocatePoolWithTag(NonPagedPool, fileName->Length, 'buf1');
 	sprintf(buffer, "%wZ", &(*fileName));
 
-	if (strstr(buffer, bannedString) != NULL)
+	for (int i = 0; i < arraySize; i++)
 	{
-		ExFreePoolWithTag(buffer, 'buf1');
-		return TRUE;
+		if (strstr(buffer, bannedStringArray[i]) != NULL)
+		{
+			ExFreePoolWithTag(buffer, 'buf1');
+			return TRUE;
+		}
 	}
 
 	ExFreePoolWithTag(buffer, 'buf1');
@@ -165,15 +246,11 @@ FilterEvtIoDispatchCreate
 {
 	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
 
-	if (ban && DoesContain(fileName, ban))
+	if (DoesContain(fileName, noAccess, noAccCount))
 	{
-		if (DoesContain(fileName, ".png") ||
-			DoesContain(fileName, ".bmp"))
-		{
-			DbgPrint("CREATE ACCESS DENIED => %s", *fileName);
+			DbgPrint("CREATE ACCESS DENIED => %wZ", *fileName);
 			logData(fileName, "CREATE ACCESS DENIED");
 			return STATUS_CANCELLED;
-		}
 	}
 
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
@@ -193,20 +270,12 @@ FilterEvtIoClose
 NTSTATUS FilterEvtIoSetInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
-
-	if (ban && DoesContain(fileName, ban) || DoesContain(fileName,"myfilterlog"))
+	if (DoesContain(fileName, writeOnlyAccess, writeAccCount))
 	{
-		if (DoesContain(fileName, ".txt"))
-		{
-			logData(fileName, "INFORMATION CHANGE DENIED");
-			return STATUS_CANCELLED;
-		}
-		logData(fileName, "INFORMATION CHANGE");
-	}
-
-	if (DoesContain(fileName, "myfilterlog.txt"))
+		DbgPrint("INFORMATION CHANGE DENIED => %wZ", *fileName);
+		logData(fileName, "INFORMATION CHANGE DENIED");
 		return STATUS_CANCELLED;
-
+	}
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
 
@@ -230,6 +299,13 @@ FilterEvtIoWrite
 	__in PIRP           Irp
 )
 {
+
 	PUNICODE_STRING fileName = &(IoGetCurrentIrpStackLocation(Irp)->FileObject->FileName);
+	if (DoesContain(fileName, readOnlyAccess, readAccCount))
+	{
+		DbgPrint("WRITE ACCESS DENIED => %wZ", *fileName);
+		logData(fileName, "WRITE ACCESS DENIED");
+		return STATUS_CANCELLED;
+	}
 	return FilterEvtIoDispatchPassThrough(DeviceObject, Irp);
 }
