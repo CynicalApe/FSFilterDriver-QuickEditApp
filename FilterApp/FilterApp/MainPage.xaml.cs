@@ -12,6 +12,7 @@ using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
+using System.Runtime.InteropServices;
 
 // The Blank Padge item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -117,6 +118,7 @@ namespace FilterApp
             await Windows.Storage.FileIO.AppendTextAsync(restFile, restStream);
             await Windows.Storage.FileIO.AppendTextAsync(dispFile, displayStream);
             listbox.Items.Add(displayStream);
+            System.Diagnostics.Debug.Write(foo(5));
 
         }
 
@@ -233,9 +235,9 @@ namespace FilterApp
             int index = listbox.SelectedIndex;
             if (index != -1)
             {
-               Windows.Storage.StorageFile restFile =
-                await storageFolder.CreateFileAsync(restrictionPath,
-                    Windows.Storage.CreationCollisionOption.OpenIfExists);
+                Windows.Storage.StorageFile restFile =
+                 await storageFolder.CreateFileAsync(restrictionPath,
+                     Windows.Storage.CreationCollisionOption.OpenIfExists);
 
                 Windows.Storage.StorageFile dispFile =
                     await storageFolder.CreateFileAsync(displayPath,
@@ -250,5 +252,9 @@ namespace FilterApp
                 await Windows.Storage.FileIO.WriteLinesAsync(dispFile, dispread);
             }
         }
+
+        
+        [DllImport("D:\\Documents\\Visual Studio 2015\\Projects\\FILTERCOMDLL\\x64\\Debug\\FILTERCOMDLL\\FILTERCOMDLL.dll")]
+        static extern int  foo(int q);
     }
 }
